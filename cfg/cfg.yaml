@@ -1,0 +1,11 @@
+pose_loss_weight: 0.1
+conf_loss_weight: 0.2
+object_loss_weight: 0.3
+action_loss_weight: 0.4
+num_objects: 10
+num_actions: 12
+num_hand_control_points: 21
+num_object_control_points: 21
+height_discretization: 13
+width_discretization: 13
+depth_discretization: 5
