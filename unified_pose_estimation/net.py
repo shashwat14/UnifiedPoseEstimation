@@ -52,14 +52,22 @@ class UnifiedNetwork(nn.Module):
         pred_v_o = x[:, self.hand_vector_size:, :, :, :]
 
         # hand specific predictions
-        pred_hand_pose = pred_v_h[:, :3*self.num_hand_control_points, :, :, :] # TODO: root control point must have sigmoid activation
+        pred_hand_pose = pred_v_h[:, :3*self.num_hand_control_points, :, :, :]
+        pred_hand_pose = pred_hand_pose.view(-1, 21, 3, 5, 13, 13)
+        pred_hand_pose_root = torch.sigmoid(pred_hand_pose[:, 0, :, :, :, :].unsqueeze(1))
+        pred_hand_pose_without_root = pred_hand_pose[:, 1:, :, :, :, :]
+        pred_hand_pose = torch.cat((pred_hand_pose_root, pred_hand_pose_without_root), 1).view(-1, 63, 5, 13, 13)
         pred_action_prob = pred_v_h[:, 3*self.num_hand_control_points:-1, :, :, :] 
-        pred_hand_conf = F.sigmoid(pred_v_h[:, -1, :, :, :])
+        pred_hand_conf = torch.sigmoid(pred_v_h[:, -1, :, :, :])
 
         # object specific predictions
-        pred_object_pose = pred_v_o[:, :3*self.num_object_control_points, :, :, :] # TODO: root control point must have sigmoid activation
+        pred_object_pose = pred_v_o[:, :3*self.num_object_control_points, :, :, :]
+        pred_object_pose = pred_object_pose.view(-1, 21, 3, 5, 13, 13)
+        pred_object_pose_root = torch.sigmoid(pred_object_pose[:, 0, :, :, :, :].unsqueeze(1))
+        pred_object_pose_without_root = pred_object_pose[:, 1:, :, :, :, :]
+        pred_object_pose = torch.cat((pred_object_pose_root, pred_object_pose_without_root), 1).view(-1, 63, 5, 13, 13)
         pred_object_prob = pred_v_o[:, 3*self.num_object_control_points:-1, :, :, :]
-        pred_object_conf = F.sigmoid(pred_v_o[:, -1, :, :, :])
+        pred_object_conf = torch.sigmoid(pred_v_o[:, -1, :, :, :])
 
         return pred_hand_pose, pred_action_prob, pred_hand_conf, pred_object_pose, pred_object_prob, pred_object_conf
         
