@@ -97,24 +97,29 @@ class UnifiedNetwork(nn.Module):
         pred = pred.view(32, 21, 3, 5, 13, 13)
         true = true.view(32, 21, 3, 5, 13, 13)
 
-        pred_pixel = pred[:, :, :2, :, :, :]
-        pred_depth = pred[:, :, 2, :, :, :]
+        pred_pixel_x = pred[:, :, 0, :, :, :].unsqueeze(2) * 32 * (1920. / 416)
+        pred_pixel_y = pred[:, :, 1, :, :, :].unsqueeze(2) * 32 * (1080. / 416)
+        pred_depth = pred[:, :, 2, :, :, :] * 15 * 10
 
-        true_pixel = true[:, :, :2, :, :, :]
-        true_depth = true[:, :, 2, :, :, :]
+        true_pixel_x = true[:, :, 0, :, :, :].unsqueeze(2) * 32 * (1920. / 416)
+        true_pixel_y = true[:, :, 1, :, :, :].unsqueeze(2) * 32 * (1080. / 416)
+        true_depth = true[:, :, 2, :, :, :] * 15 * 10
 
-        pixel_distance = torch.sqrt(torch.sum(torch.mul(pred_pixel - true_pixel, pred_pixel - true_pixel), dim=2))
+        pixel_x_distance = torch.mul(pred_pixel_x - true_pixel_x, pred_pixel_x - true_pixel_x)
+        pixel_y_distance = torch.mul(pred_pixel_y - true_pixel_y, pred_pixel_y - true_pixel_y)
+        pixel_distance = torch.sqrt(pixel_x_distance + pixel_y_distance).squeeze(2)
         depth_distance = torch.sqrt(torch.mul(pred_depth - true_depth, pred_depth - true_depth))
         
         # threshold
         pixel_distance_mask = (pixel_distance < parameters.pixel_threshold).type(torch.FloatTensor)
         depth_distance_mask = (depth_distance < parameters.depth_threshold).type(torch.FloatTensor)
 
-        pixel_distance = torch.mean(pixel_distance_mask * pixel_distance, dim=1)
-        depth_distance = torch.mean(depth_distance_mask * depth_distance, dim=1)
-
         pixel_conf = torch.exp(parameters.sharpness * (1 - pixel_distance / parameters.pixel_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(pixel_distance.size())))
         depth_conf = torch.exp(parameters.sharpness * (1 - depth_distance / parameters.depth_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(depth_distance.size())))
+
+        pixel_conf = torch.mean(pixel_distance_mask * pixel_conf, dim=1)
+        depth_conf = torch.mean(depth_distance_mask * depth_conf, dim=1)
+
         true_conf = 0.5 * (pixel_conf + depth_conf)
         squared_conf_error = torch.mul(pred_conf - true_conf, pred_conf - true_conf)
         exist_conf_error = torch.mean(torch.sum(mask * squared_conf_error, dim=[1,2,3]))

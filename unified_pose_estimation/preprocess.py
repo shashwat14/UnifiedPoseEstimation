@@ -69,7 +69,7 @@ def upsample_points(points, depth):
     
     u = points[0] * downsample_ratio_x
     v = points[1] * downsample_ratio_y
-    z = depth * 10. # converting to centimeters
+    z = depth * 10. # converting to millimeters
 
     return u, v, z
 
