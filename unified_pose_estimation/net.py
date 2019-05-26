@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 import torchvision.models as models
 
 from cfg import parameters
@@ -32,10 +32,8 @@ class UnifiedNetwork(nn.Module):
     
     def setup_losses(self):
 
-        self.pose_loss = nn.MSELoss()
-        self.conf_loss = nn.MSELoss()
-        self.action_loss = nn.CrossEntropyLoss()
-        self.object_loss = nn.CrossEntropyLoss()
+        self.action_ce_loss = nn.CrossEntropyLoss(reduction='none')
+        self.object_ce_loss = nn.CrossEntropyLoss(reduction='none')
 
     def forward(self, x):
 
@@ -54,35 +52,78 @@ class UnifiedNetwork(nn.Module):
         pred_v_o = x[:, self.hand_vector_size:, :, :, :]
 
         # hand specific predictions
-        pred_hand_pose = pred_v_h[:, :3*self.num_hand_control_points, :, :, :]
-        pred_action_prob = pred_v_h[:, 3*self.num_hand_control_points:-1, :, :, :]
-        pred_hand_conf = pred_v_h[:, -1, :, :, :]
+        pred_hand_pose = pred_v_h[:, :3*self.num_hand_control_points, :, :, :] # TODO: root control point must have sigmoid activation
+        pred_action_prob = pred_v_h[:, 3*self.num_hand_control_points:-1, :, :, :] 
+        pred_hand_conf = F.sigmoid(pred_v_h[:, -1, :, :, :])
 
         # object specific predictions
-        pred_object_pose = pred_v_o[:, :3*self.num_object_control_points, :, :, :]
+        pred_object_pose = pred_v_o[:, :3*self.num_object_control_points, :, :, :] # TODO: root control point must have sigmoid activation
         pred_object_prob = pred_v_o[:, 3*self.num_object_control_points:-1, :, :, :]
-        pred_object_conf = pred_v_o[:, -1, :, :, :]
+        pred_object_conf = F.sigmoid(pred_v_o[:, -1, :, :, :])
 
         return pred_hand_pose, pred_action_prob, pred_hand_conf, pred_object_pose, pred_object_prob, pred_object_conf
         
     def total_loss(self, pred, true):
 
         pred_hand_pose, pred_action_prob, pred_hand_conf, pred_object_pose, pred_object_prob, pred_object_conf = pred
-        true_hand_pose, true_action_prob, true_hand_conf, true_object_pose, true_object_prob, true_object_conf = true
+        true_hand_pose, true_action_prob, hand_mask, true_object_pose, true_object_prob, object_mask = true
         
-        total_pose_loss = self.pose_loss(pred_hand_pose, true_hand_pose) + self.pose_loss(pred_object_pose, true_object_pose)
-        total_conf_loss = self.conf_loss(pred_hand_conf, true_hand_conf) + self.conf_loss(pred_object_conf, true_object_conf)
-        total_action_loss = self.action_loss(pred_action_prob, true_action_prob)
-        total_object_loss = self.object_loss(pred_object_prob, true_object_prob)
+        total_pose_loss = self.pose_loss(pred_hand_pose, true_hand_pose, hand_mask) + self.pose_loss(pred_object_pose, true_object_pose, object_mask)
+        total_conf_loss = self.conf_loss(pred_hand_conf, pred_hand_pose, true_hand_pose, hand_mask) + self.conf_loss(pred_object_conf, pred_object_pose, true_hand_pose, object_mask)
+        total_action_loss = self.action_loss(pred_action_prob, true_action_prob, hand_mask)
+        total_object_loss = self.object_loss(pred_object_prob, true_object_prob, object_mask)
 
-        weighted_pose_loss = parameters.pose_loss_weight * total_pose_loss
-        weighted_conf_loss = parameters.conf_loss_weight * total_conf_loss
-        weighted_action_loss = parameters.action_loss_weight * total_action_loss
-        weigthed_object_loss = parameters.object_loss_weight * total_object_loss
-
-        total_loss = weighted_pose_loss + weighted_conf_loss + weighted_action_loss + weigthed_object_loss
+        total_loss = total_pose_loss + total_conf_loss + total_action_loss + total_object_loss
 
         return total_loss
+
+    def pose_loss(self, pred, true, mask):
+
+        pred = pred.view(32, 21, 3, 5, 13, 13)
+        true = true.view(32, 21, 3, 5, 13, 13)
+        masked_pose_loss = torch.mean(torch.sum(mask * torch.sum(torch.mul(pred - true, pred - true), dim=[1,2]), dim=[1,2,3]))
+        return masked_pose_loss
+    
+    def conf_loss(self, pred_conf, pred, true, mask):
+        
+        pred = pred.view(32, 21, 3, 5, 13, 13)
+        true = true.view(32, 21, 3, 5, 13, 13)
+
+        pred_pixel = pred[:, :, :2, :, :, :]
+        pred_depth = pred[:, :, 2, :, :, :]
+
+        true_pixel = true[:, :, :2, :, :, :]
+        true_depth = true[:, :, 2, :, :, :]
+
+        pixel_distance = torch.sqrt(torch.sum(torch.mul(pred_pixel - true_pixel, pred_pixel - true_pixel), dim=2))
+        depth_distance = torch.sqrt(torch.mul(pred_depth - true_depth, pred_depth - true_depth))
+        
+        # threshold
+        pixel_distance_mask = (pixel_distance < parameters.pixel_threshold).type(torch.FloatTensor)
+        depth_distance_mask = (depth_distance < parameters.depth_threshold).type(torch.FloatTensor)
+
+        pixel_distance = torch.mean(pixel_distance_mask * pixel_distance, dim=1)
+        depth_distance = torch.mean(depth_distance_mask * depth_distance, dim=1)
+
+        pixel_conf = torch.exp(parameters.sharpness * (1 - pixel_distance / parameters.pixel_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(pixel_distance.size())))
+        depth_conf = torch.exp(parameters.sharpness * (1 - depth_distance / parameters.depth_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(depth_distance.size())))
+        true_conf = 0.5 * (pixel_conf + depth_conf)
+        squared_conf_error = torch.mul(pred_conf - true_conf, pred_conf - true_conf)
+        exist_conf_error = torch.mean(torch.sum(mask * squared_conf_error, dim=[1,2,3]))
+
+        true_conf = torch.zeros(pred_conf.size())
+        squared_conf_error = torch.mul(pred_conf - true_conf, pred_conf - true_conf)
+        no_exist_conf_error = torch.mean(torch.sum((1 - mask) * squared_conf_error, dim=[1,2,3]))
+
+        return 5 * exist_conf_error + 0.1 * no_exist_conf_error
+        
+    def action_loss(self, pred, true, mask):
+        action_ce_loss = self.action_ce_loss(pred, true)
+        return torch.mean(torch.sum(mask * action_ce_loss, dim=[1,2,3]))
+
+    def object_loss(self, pred, true, mask):
+        object_ce_loss = self.object_ce_loss(pred, true)
+        return torch.mean(torch.sum(mask * object_ce_loss, dim=[1,2,3]))
 
 if __name__ == '__main__':
 
@@ -95,13 +136,15 @@ if __name__ == '__main__':
     
     true_hand_pose = torch.randn(32, 3 * parameters.num_hand_control_points, 5, 13, 13)
     true_action_prob = torch.empty(32, 5, 13, 13, dtype=torch.long).random_(parameters.num_actions)
-    true_hand_conf = torch.randn(32, 5, 13, 13)
-    
+    hand_mask = torch.zeros(5, 13, 13, dtype=torch.float32)
+    hand_mask[0, 0, 0] = 1.
+
     true_object_pose = torch.randn(32, 3 * parameters.num_object_control_points, 5, 13, 13)
     true_object_prob = torch.empty(32, 5, 13, 13, dtype=torch.long).random_(parameters.num_objects)
-    true_object_conf = torch.randn(32, 5, 13, 13)
+    object_mask = torch.zeros(5, 13, 13, dtype=torch.float32)
+    object_mask[0, 0, 0] = 1.
 
-    true = true_hand_pose, true_action_prob, true_hand_conf, true_object_pose, true_object_prob, true_object_conf
+    true = true_hand_pose, true_action_prob, hand_mask, true_object_pose, true_object_prob, object_mask
 
     print model.total_loss(pred, true)
     

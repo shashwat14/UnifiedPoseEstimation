@@ -11,3 +11,6 @@ num_object_control_points: 21
 height_discretization: 13
 width_discretization: 13
 depth_discretization: 5
+sharpness: 2.
+pixel_threshold: 75
+depth_threshold: 75
