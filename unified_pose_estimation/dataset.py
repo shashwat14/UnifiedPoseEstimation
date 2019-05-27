@@ -2,6 +2,7 @@
 Some parts of this code (preprocess.py) have been borrowed from from https://github.com/guiggh/hand_pose_action
 """
 import os
+import pickle
 
 import torch
 import trimesh
@@ -14,17 +15,17 @@ from torch.utils.data import Dataset, DataLoader
 
 class UnifiedPoseDataset(Dataset):
 
-    def __init__(self, mode='train', root='../data'):
-        
-        if mode=='train':
-            self.subjects = [1]
-        elif mode == 'test':
-            self.subjects = []
-        else:
-            raise Exception("Incorrect vallue for for 'mode': {}".format(mode))
+    def __init__(self, mode='train', root='../data', loadit=False):
         
         self.root = root
 
+        if mode=='train':
+            self.subjects = [1, 3, 4]
+        elif mode == 'test':
+            self.subjects = [2, 5, 6]
+        else:
+            raise Exception("Incorrect vallue for for 'mode': {}".format(mode))
+        
         subject = "Subject_1"
         subject = os.path.join(root, 'Object_6D_pose_annotation_v1', subject)
         self.actions = os.listdir(subject)
@@ -47,48 +48,77 @@ class UnifiedPoseDataset(Dataset):
         object_root = os.path.join(self.root, 'Object_models')
         self.objects = self.load_objects(object_root)
 
-        self.samples = []
-        for subject in self.subjects:
-            subject = "Subject_" + str(subject)
-            for action in self.actions:
-                sequences = len(os.listdir(os.path.join(root, 'Video_files', subject, action)))
-                for sequence in range(1, sequences + 1):
-                    frames = len(os.listdir(os.path.join(root, 'Video_files', subject, action, str(sequence), 'color')))
-                    for frame in range(frames):
-                        sample = {
-                                'subject': subject,
-                                'action_name': action,
-                                'seq_idx': str(sequence),
-                                'frame_idx': frame,
-                                'object': action_to_object[action]
-                        }
-                        self.samples.append(sample)
+        if not loadit:
+            
+            self.samples = {}
+            idx = 0
+            for subject in self.subjects:
+                subject = "Subject_" + str(subject)
+                for action in self.actions:
+                    sequences = len(os.listdir(os.path.join(root, 'Video_files', subject, action)))
+                    for sequence in range(1, sequences + 1):
+                        frames = len(os.listdir(os.path.join(root, 'Video_files', subject, action, str(sequence), 'color')))
+                        for frame in range(frames):
+                            sample = {
+                                    'subject': subject,
+                                    'action_name': action,
+                                    'seq_idx': str(sequence),
+                                    'frame_idx': frame,
+                                    'object': action_to_object[action]
+                            }
+                            self.samples[idx] = sample
+                            idx += 1
 
+            self.clean_data()
+
+            self.save_samples(mode)
+
+        else:
+
+            self.samples = self.load_samples(mode)
+
+    def load_samples(self, mode):
+
+        with open('../cfg/{}.pkl'.format(mode), 'r') as f:
+            samples = pickle.load(f)
+            return samples
+
+    def save_samples(self, mode):
+
+        with open('../cfg/{}.pkl'.format(mode), 'wb') as f:
+            pickle.dump(self.samples, f)
+
+    def clean_data(self):
+        print ("Size beforing cleaning: {}".format(len(self.samples.keys())))    
+
+        for key in self.samples.keys():
+            try:
+                self.__getitem__(key)
+            except Exception as e:
+                print ("Index failed: {}".format(key))
+                del self.samples[key]
+
+        self.samples = self.samples.values()
+
+        print ("Size after cleaning: {}".format(len(self.samples)))
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
 
-        while True:
-            try:
-                return self.preprocess(idx % len(self.samples))
-            except Exception as e:
-                print ("Couldn't get data. Reason {}. Trying next index. ".format(e))
-                idx += 1
+        return self.preprocess(idx)
 
     def get_image(self, sample):
         img_path = os.path.join(self.root, 'Video_files', sample['subject'],
                             sample['action_name'], sample['seq_idx'], 'color','color_{:04d}.jpeg'.format(sample['frame_idx']))
         img = Image.open(img_path)
-        img = np.asarray(img.resize((416, 416), Image.ANTIALIAS))
+        img = np.asarray(img.resize((416, 416), Image.ANTIALIAS), dtype=np.float32)
         img = np.transpose(img, (2, 0, 1))
-        return img
+        return img / 255.
 
     def preprocess(self, idx):
         sample = self.samples[idx]
-
-        image = torch.from_numpy(self.get_image(sample))
 
         object_category = {
         'juice': 0,
@@ -140,16 +170,16 @@ class UnifiedPoseDataset(Dataset):
         true_object_pose = torch.zeros(21, 3, 5, 13, 13, dtype=torch.float32)
         u, v, z = cell
         pose = np.vstack((del_u, del_v, del_z)).T
-        true_object_pose[:, :, z, u, v] = torch.from_numpy(pose)
+        true_object_pose[:, :, z, v, u] = torch.from_numpy(pose)
         true_object_pose = true_object_pose.view(-1, 5, 13, 13)
 
         # object mask
         object_mask = torch.zeros(5, 13, 13, dtype=torch.float32)
-        object_mask[z, u, v] = 1
+        object_mask[z, v, u] = 1
 
         # object class tensor
         true_object_prob = torch.zeros(5, 13, 13, dtype=torch.long)
-        true_object_prob[z, u, v] = object_category[sample['object']]
+        true_object_prob[z, v, u] = object_category[sample['object']]
 
         # Hand Properties
         reorder_idx = np.array([0, 1, 6, 7, 8, 2, 9, 10, 11, 3, 12, 13, 14, 4, 15, 16, 17, 5, 18, 19, 20])
@@ -165,16 +195,18 @@ class UnifiedPoseDataset(Dataset):
         true_hand_pose = torch.zeros(21, 3, 5, 13, 13, dtype=torch.float32)
         u, v, z = cell
         pose = np.vstack((del_u, del_v, del_z)).T
-        true_hand_pose[:, :, z, u, v] = torch.from_numpy(pose)
+        true_hand_pose[:, :, z, v, u] = torch.from_numpy(pose)
         true_hand_pose = true_hand_pose.view(-1, 5, 13, 13)
 
         # hand mask
         hand_mask = torch.zeros(5, 13, 13, dtype=torch.float32)
-        hand_mask[z, u, v] = 1
+        hand_mask[z, v, u] = 1
 
         # hand action tensor
         true_hand_prob = torch.zeros(5, 13, 13, dtype=torch.long)
-        true_hand_prob[z, u, v] = action_category[sample['action_name']]
+        true_hand_prob[z, v, u] = action_category[sample['action_name']]
+
+        image = torch.from_numpy(self.get_image(sample))
 
         return image, true_hand_pose, true_hand_prob, hand_mask, true_object_pose, true_object_prob, object_mask
 

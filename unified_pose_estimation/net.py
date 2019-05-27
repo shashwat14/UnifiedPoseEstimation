@@ -87,15 +87,15 @@ class UnifiedNetwork(nn.Module):
 
     def pose_loss(self, pred, true, mask):
 
-        pred = pred.view(32, 21, 3, 5, 13, 13)
-        true = true.view(32, 21, 3, 5, 13, 13)
+        pred = pred.view(-1, 21, 3, 5, 13, 13)
+        true = true.view(-1, 21, 3, 5, 13, 13)
         masked_pose_loss = torch.mean(torch.sum(mask * torch.sum(torch.mul(pred - true, pred - true), dim=[1,2]), dim=[1,2,3]))
         return masked_pose_loss
     
     def conf_loss(self, pred_conf, pred, true, mask):
         
-        pred = pred.view(32, 21, 3, 5, 13, 13)
-        true = true.view(32, 21, 3, 5, 13, 13)
+        pred = pred.view(-1, 21, 3, 5, 13, 13)
+        true = true.view(-1, 21, 3, 5, 13, 13)
 
         pred_pixel_x = pred[:, :, 0, :, :, :].unsqueeze(2) * 32 * (1920. / 416)
         pred_pixel_y = pred[:, :, 1, :, :, :].unsqueeze(2) * 32 * (1080. / 416)
@@ -111,11 +111,11 @@ class UnifiedNetwork(nn.Module):
         depth_distance = torch.sqrt(torch.mul(pred_depth - true_depth, pred_depth - true_depth))
         
         # threshold
-        pixel_distance_mask = (pixel_distance < parameters.pixel_threshold).type(torch.FloatTensor)
-        depth_distance_mask = (depth_distance < parameters.depth_threshold).type(torch.FloatTensor)
+        pixel_distance_mask = (pixel_distance < parameters.pixel_threshold).type(torch.cuda.FloatTensor)
+        depth_distance_mask = (depth_distance < parameters.depth_threshold).type(torch.cuda.FloatTensor)
 
-        pixel_conf = torch.exp(parameters.sharpness * (1 - pixel_distance / parameters.pixel_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(pixel_distance.size())))
-        depth_conf = torch.exp(parameters.sharpness * (1 - depth_distance / parameters.depth_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(depth_distance.size())))
+        pixel_conf = torch.exp(parameters.sharpness * (1 - pixel_distance / parameters.pixel_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(pixel_distance.size()).cuda()))
+        depth_conf = torch.exp(parameters.sharpness * (1 - depth_distance / parameters.depth_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(depth_distance.size()).cuda()))
 
         pixel_conf = torch.mean(pixel_distance_mask * pixel_conf, dim=1)
         depth_conf = torch.mean(depth_distance_mask * depth_conf, dim=1)
@@ -124,7 +124,7 @@ class UnifiedNetwork(nn.Module):
         squared_conf_error = torch.mul(pred_conf - true_conf, pred_conf - true_conf)
         exist_conf_error = torch.mean(torch.sum(mask * squared_conf_error, dim=[1,2,3]))
 
-        true_conf = torch.zeros(pred_conf.size())
+        true_conf = torch.zeros(pred_conf.size()).cuda()
         squared_conf_error = torch.mul(pred_conf - true_conf, pred_conf - true_conf)
         no_exist_conf_error = torch.mean(torch.sum((1 - mask) * squared_conf_error, dim=[1,2,3]))
 
