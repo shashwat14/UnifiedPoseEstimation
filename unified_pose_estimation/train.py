@@ -11,7 +11,7 @@ training_dataset = UnifiedPoseDataset(mode='train', loadit=True)
 testing_dataset = UnifiedPoseDataset(mode='test', loadit=True)
 
 training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = 16, shuffle=True, num_workers=4)
-testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = 1, shuffle=False, num_workers=4)
+testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = 16, shuffle=False, num_workers=4)
 
 model = UnifiedNetwork()
 model.cuda()
@@ -54,7 +54,7 @@ for epoch in range(parameters.epochs):
 
             pred = model(image.cuda())
             loss = model.total_loss(pred, true)
-            validation_loss += loss
+            validation_loss += loss.data.cpu().numpy()
 
     validation_loss = validation_loss / batch
 
