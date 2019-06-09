@@ -1,7 +1,7 @@
 from dataset import UnifiedPoseDataset
 
-dataset = UnifiedPoseDataset(mode='train', loadit=True, name='train2')
+dataset = UnifiedPoseDataset(mode='train', loadit=False, name='train2')
 print len(dataset)
-dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test2')
+dataset = UnifiedPoseDataset(mode='test', loadit=False, name='test2')
 print len(dataset)
 
