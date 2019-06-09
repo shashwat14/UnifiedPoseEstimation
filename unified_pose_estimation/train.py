@@ -8,6 +8,7 @@ from cfg import parameters
 from net import UnifiedNetwork
 from dataset import UnifiedPoseDataset
 
+from tensorboardX import SummaryWriter
 
 training_dataset = UnifiedPoseDataset(mode='train', loadit=True, name='train2')
 testing_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test2')
@@ -29,6 +30,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=parameters.lr)
 
 best_loss = float('inf')
 
+writer = SummaryWriter()
+
 for epoch in range(parameters.epochs):
     
     # train
@@ -44,15 +47,14 @@ for epoch in range(parameters.epochs):
 
         pred = model(image.cuda())
         loss = model.total_loss(pred, true)
-        if batch % 10 == 0:
-            print loss
         training_loss += loss.data.cpu().numpy()  
         loss.backward()
 
         optimizer.step()
     
     training_loss = training_loss / batch
-    
+    writer.add_scalar('error/total_training_error', training_loss, epoch)
+
     # validation
     #model.eval()
     validation_loss = 0.
@@ -67,6 +69,7 @@ for epoch in range(parameters.epochs):
             validation_loss += loss.data.cpu().numpy()
 
     validation_loss = validation_loss / batch
+    writer.add_scalar('error/total_validation_error', validation_loss, epoch)
 
     if validation_loss < best_loss:
 
