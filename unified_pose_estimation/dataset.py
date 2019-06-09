@@ -15,14 +15,21 @@ from torch.utils.data import Dataset, DataLoader
 
 class UnifiedPoseDataset(Dataset):
 
-    def __init__(self, mode='train', root='../data', loadit=False):
+    def __init__(self, mode='train', root='../data', loadit=False, name=None):
         
+        self.loadit = loadit
+
+        if name is None:
+            self.name = mode
+        else:
+            self.name = name
+
         self.root = root
 
         if mode=='train':
-            self.subjects = [1, 3, 4]
+            self.subjects = [1, 3, 6]
         elif mode == 'test':
-            self.subjects = [2, 5, 6]
+            self.subjects = [2, 5, 4]
         else:
             raise Exception("Incorrect vallue for for 'mode': {}".format(mode))
         
@@ -44,6 +51,9 @@ class UnifiedPoseDataset(Dataset):
             'put_salt': 'salt'
         }
 
+        self.transform = transforms.ColorJitter(0.5, 0.5, 0.5)
+        self.normalize = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
         # load meshes to memory
         object_root = os.path.join(self.root, 'Object_models')
         self.objects = self.load_objects(object_root)
@@ -55,9 +65,11 @@ class UnifiedPoseDataset(Dataset):
             for subject in self.subjects:
                 subject = "Subject_" + str(subject)
                 for action in self.actions:
-                    sequences = len(os.listdir(os.path.join(root, 'Video_files', subject, action)))
-                    for sequence in range(1, sequences + 1):
-                        frames = len(os.listdir(os.path.join(root, 'Video_files', subject, action, str(sequence), 'color')))
+                    pose_sequences = set(os.listdir(os.path.join(root, 'Object_6D_pose_annotation_v1', subject, action)))
+                    video_sequences = set(os.listdir(os.path.join(root, 'Video_files', subject, action)))
+                    sequences = list(pose_sequences.intersection(video_sequences))
+                    for sequence in sequences:
+                        frames = len(os.listdir(os.path.join(root, 'Video_files', subject, action, sequence, 'color')))
                         for frame in range(frames):
                             sample = {
                                     'subject': subject,
@@ -79,13 +91,13 @@ class UnifiedPoseDataset(Dataset):
 
     def load_samples(self, mode):
 
-        with open('../cfg/{}.pkl'.format(mode), 'r') as f:
+        with open('../cfg/{}.pkl'.format(self.name), 'r') as f:
             samples = pickle.load(f)
             return samples
 
     def save_samples(self, mode):
 
-        with open('../cfg/{}.pkl'.format(mode), 'wb') as f:
+        with open('../cfg/{}.pkl'.format(self.name), 'wb') as f:
             pickle.dump(self.samples, f)
 
     def clean_data(self):
@@ -95,6 +107,7 @@ class UnifiedPoseDataset(Dataset):
             try:
                 self.__getitem__(key)
             except Exception as e:
+                print e
                 print ("Index failed: {}".format(key))
                 del self.samples[key]
 
@@ -113,9 +126,10 @@ class UnifiedPoseDataset(Dataset):
         img_path = os.path.join(self.root, 'Video_files', sample['subject'],
                             sample['action_name'], sample['seq_idx'], 'color','color_{:04d}.jpeg'.format(sample['frame_idx']))
         img = Image.open(img_path)
+        img = self.transform(img)
         img = np.asarray(img.resize((416, 416), Image.ANTIALIAS), dtype=np.float32)
         img = np.transpose(img, (2, 0, 1))
-        return img / 255.
+        return img
 
     def preprocess(self, idx):
         sample = self.samples[idx]
@@ -131,13 +145,13 @@ class UnifiedPoseDataset(Dataset):
             'open_milk': 0,
             'close_milk': 1,
             'pour_milk': 2,
-            'open_juice_bottle': 3,
-            'close_juice_bottle': 4,
-            'pour_juice_bottle': 5,
-            'open_liquid_soap': 6,
-            'close_liquid_soap': 7,
-            'pour_liquid_soap': 8,
-            'put_salt': 9
+            'open_juice_bottle': 0,
+            'close_juice_bottle': 1,
+            'pour_juice_bottle': 2,
+            'open_liquid_soap': 0,
+            'close_liquid_soap': 1,
+            'pour_liquid_soap': 2,
+            'put_salt': 3
         }
 
         skeleton_root = os.path.join(self.root, 'Hand_pose_annotation_v1')
@@ -206,7 +220,12 @@ class UnifiedPoseDataset(Dataset):
         true_hand_prob = torch.zeros(5, 13, 13, dtype=torch.long)
         true_hand_prob[z, v, u] = action_category[sample['action_name']]
 
-        image = torch.from_numpy(self.get_image(sample))
+        image = None
+
+        if self.loadit:
+
+            image = torch.from_numpy(self.get_image(sample))
+            image = self.normalize(image)
 
         return image, true_hand_pose, true_hand_prob, hand_mask, true_object_pose, true_object_prob, object_mask
 
@@ -351,13 +370,7 @@ class UnifiedPoseDataset(Dataset):
         
 if __name__ == '__main__':
 
-    train_dataset = UnifiedPoseDataset()
-    image, hand_pose, action_prob, hand_mask, object_pose, object_prob, object_mask = train_dataset[0]
-    print image.size()
-    print hand_pose.size()
-    print action_prob.size()
-    print hand_mask.size()
-    print object_pose.size()
-    print object_prob.size()
-    print object_mask.size()
-    
+    train = UnifiedPoseDataset(mode='train', loadit=True, name='train2')
+
+
+    train[0]

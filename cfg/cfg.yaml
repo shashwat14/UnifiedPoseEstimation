@@ -5,7 +5,7 @@ conf_loss_weight: 0.2
 object_loss_weight: 0.3
 action_loss_weight: 0.4
 num_objects: 4
-num_actions: 10
+num_actions: 4
 num_hand_control_points: 21
 num_object_control_points: 21
 height_discretization: 13

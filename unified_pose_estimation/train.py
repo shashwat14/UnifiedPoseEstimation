@@ -1,3 +1,5 @@
+import random
+
 from tqdm import tqdm
 import torch
 
@@ -7,8 +9,15 @@ from net import UnifiedNetwork
 from dataset import UnifiedPoseDataset
 
 
-training_dataset = UnifiedPoseDataset(mode='train', loadit=True)
-testing_dataset = UnifiedPoseDataset(mode='test', loadit=True)
+training_dataset = UnifiedPoseDataset(mode='train', loadit=True, name='train2')
+testing_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test2')
+samples = []
+samples += training_dataset.samples + testing_dataset.samples
+print samples[0]
+random.shuffle(samples)
+print samples[0]
+training_dataset.samples = samples[:len(samples)/2]
+testing_dataset.samples = samples[len(samples)/2:]
 
 training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = 16, shuffle=True, num_workers=4)
 testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = 16, shuffle=False, num_workers=4)
@@ -35,7 +44,8 @@ for epoch in range(parameters.epochs):
 
         pred = model(image.cuda())
         loss = model.total_loss(pred, true)
-
+        if batch % 10 == 0:
+            print loss
         training_loss += loss.data.cpu().numpy()  
         loss.backward()
 
