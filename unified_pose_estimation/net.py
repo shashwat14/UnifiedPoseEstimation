@@ -20,9 +20,6 @@ class UnifiedNetwork(nn.Module):
         model = models.resnet18(pretrained=True)
         self.features = nn.Sequential(*list(model.children())[:-2])
 
-        for param in self.features.parameters():
-            param.requires_grad = False
-
         self.hand_vector_size = 3 * self.num_hand_control_points + 1 + self.num_actions
         self.object_vector_size = 3 * self.num_hand_control_points + 1 + self.num_objects
         self.target_channel_size = self.depth_discretization * ( self.hand_vector_size + self.object_vector_size )
