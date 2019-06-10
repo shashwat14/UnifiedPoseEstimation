@@ -53,7 +53,7 @@ for epoch in range(parameters.epochs):
         optimizer.step()
     
     training_loss = training_loss / batch
-    writer.add_scalar('error/total_training_error', training_loss, epoch)
+    writer.add_scalars('data/loss', {'train_loss': training_loss}, epoch)
 
     # validation
     #model.eval()
@@ -69,7 +69,7 @@ for epoch in range(parameters.epochs):
             validation_loss += loss.data.cpu().numpy()
 
     validation_loss = validation_loss / batch
-    writer.add_scalar('error/total_validation_error', validation_loss, epoch)
+    writer.add_scalars('data/loss', {'val_loss': validation_loss}, epoch)
 
     if validation_loss < best_loss:
 
