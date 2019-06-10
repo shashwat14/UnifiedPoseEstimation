@@ -26,7 +26,7 @@ testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = 1
 model = UnifiedNetwork()
 model.cuda()
 
-optimizer = torch.optim.Adam(model.parameters(), lr=parameters.lr)
+optimizer = torch.optim.SGD(model.parameters(), lr=parameters.lr)
 
 best_loss = float('inf')
 
