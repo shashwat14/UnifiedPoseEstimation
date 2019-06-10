@@ -20,8 +20,8 @@ print samples[0]
 training_dataset.samples = samples[:len(samples)/2]
 testing_dataset.samples = samples[len(samples)/2:]
 
-training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = 16, shuffle=True, num_workers=4)
-testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = 16, shuffle=False, num_workers=4)
+training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = parameters.batch_size, shuffle=True, num_workers=4)
+testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = parameters.batch_size, shuffle=False, num_workers=4)
 
 model = UnifiedNetwork()
 model.cuda()
