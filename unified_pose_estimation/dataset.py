@@ -129,7 +129,7 @@ class UnifiedPoseDataset(Dataset):
         img = self.transform(img)
         img = np.asarray(img.resize((416, 416), Image.ANTIALIAS), dtype=np.float32)
         img = np.transpose(img, (2, 0, 1))
-        return img
+        return img / 255.
 
     def preprocess(self, idx):
         sample = self.samples[idx]
