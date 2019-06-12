@@ -26,7 +26,7 @@ testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = p
 model = UnifiedNetwork()
 model.cuda()
 
-optimizer = torch.optim.SGD(model.parameters(), lr=parameters.lr)
+optimizer = torch.optim.Adam(model.parameters(), lr=parameters.lr)
 
 best_loss = float('inf')
 
@@ -69,7 +69,7 @@ for epoch in range(parameters.epochs):
 
             if torch.isnan(image).any():
                 raise ValueError('WTF?!')
-                
+
             pred = model(image.cuda())
             loss = model.total_loss(pred, true)
             validation_loss += loss.data.cpu().numpy()
