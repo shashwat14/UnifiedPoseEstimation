@@ -45,6 +45,9 @@ for epoch in range(parameters.epochs):
         image = data[0]
         true = [x.cuda() for x in data[1:]]
 
+        if torch.isnan(image).any():
+            raise ValueError('WTF?!')
+
         pred = model(image.cuda())
         loss = model.total_loss(pred, true)
         training_loss += loss.data.cpu().numpy()  
@@ -64,6 +67,9 @@ for epoch in range(parameters.epochs):
             image = data[0]
             true = [x.cuda() for x in data[1:]]
 
+            if torch.isnan(image).any():
+                raise ValueError('WTF?!')
+                
             pred = model(image.cuda())
             loss = model.total_loss(pred, true)
             validation_loss += loss.data.cpu().numpy()
