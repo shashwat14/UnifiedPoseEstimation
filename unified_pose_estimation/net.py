@@ -17,7 +17,7 @@ class UnifiedNetwork(nn.Module):
         self.num_objects = parameters.num_objects
         self.depth_discretization = parameters.depth_discretization
         
-        model = models.vgg16(pretrained=True)
+        model = models.resnet50(pretrained=True)
         self.features = nn.Sequential(*list(model.children())[:-2])
         print self.features
         self.hand_vector_size = 3 * self.num_hand_control_points + 1 + self.num_actions
@@ -25,7 +25,7 @@ class UnifiedNetwork(nn.Module):
         self.target_channel_size = self.depth_discretization * ( self.hand_vector_size + self.object_vector_size )
 
         # prediction layers
-        self.conv = nn.Conv2d(512, self.target_channel_size, (3,3), padding=1)
+        self.conv = nn.Conv2d(2048, self.target_channel_size, (3,3), padding=1)
 
         # losses
         self.setup_losses()
