@@ -2,3 +2,4 @@ data/*
 *.pyc
 models/*
 cfg/*.pkl
+runs/*
