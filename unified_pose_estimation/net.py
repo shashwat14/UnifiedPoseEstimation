@@ -81,7 +81,7 @@ class UnifiedNetwork(nn.Module):
         total_action_loss = self.action_loss(pred_action_prob, true_action_prob, hand_mask)
         total_object_loss = self.object_loss(pred_object_prob, true_object_prob, object_mask)
 
-        total_loss = total_pose_loss + total_conf_loss + total_action_loss + total_object_loss
+        total_loss = total_pose_loss + total_action_loss + total_object_loss
 
         return total_loss
 
