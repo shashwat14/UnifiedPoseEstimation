@@ -114,6 +114,8 @@ class UnifiedNetwork(nn.Module):
         pixel_distance_mask = (pixel_distance < parameters.pixel_threshold).type(torch.cuda.FloatTensor)
         depth_distance_mask = (depth_distance < parameters.depth_threshold).type(torch.cuda.FloatTensor)
 
+        pixel_distance = pixel_distance / (32 * 416 / 1920.)
+        depth_disrance = depth_distance / (15 * 10.)
         pixel_conf = torch.exp(parameters.sharpness * (1 - pixel_distance / parameters.pixel_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(pixel_distance.size()).cuda()))
         depth_conf = torch.exp(parameters.sharpness * (1 - depth_distance / parameters.depth_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(depth_distance.size()).cuda()))
 
