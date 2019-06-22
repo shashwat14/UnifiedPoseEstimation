@@ -116,6 +116,10 @@ class UnifiedNetwork(nn.Module):
 
         pixel_distance = pixel_distance / (32 * 416 / 1920.)
         depth_disrance = depth_distance / (15 * 10.)
+
+        pixel_distance = torch.from_numpy(pixel_distance.cpu().data.numpy()).cuda()
+        depth_distance = torch.from_numpy(depth_distance.cpu().data.numpy()).cuda()
+
         pixel_conf = torch.exp(parameters.sharpness * (1 - pixel_distance / parameters.pixel_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(pixel_distance.size()).cuda()))
         depth_conf = torch.exp(parameters.sharpness * (1 - depth_distance / parameters.depth_threshold)) / torch.exp(parameters.sharpness * (1 - torch.zeros(depth_distance.size()).cuda()))
 
