@@ -19,19 +19,19 @@ This has been tested on Python 2.7, Ubuntu 16.04, and Pytorch 1.0.1.post2.
 
 ### Directory Structure
 UnifiedPoseEstimation
-  cfg
-  data
-  models
-  unified_pose_estimation
+  - cfg
+  - data
+  - models
+  - unified_pose_estimation
 
 If any of the above directory is not present, please create them. 
 
 You need to download and place the FPHA dataset in data directory. The data directory structure will look like
-  Hand_pose_annotation_v1
-  Object_models
-  Subjects_info
-  Video_files
-  ..etc
+  - Hand_pose_annotation_v1
+  - Object_models
+  - Subjects_info
+  - Video_files
+  - ..etc
 
 Now cd into punified_pose_estimation
 
