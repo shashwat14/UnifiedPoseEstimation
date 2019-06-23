@@ -27,9 +27,9 @@ class UnifiedPoseDataset(Dataset):
         self.root = root
 
         if mode=='train':
-            self.subjects = [1, 3, 6]
+            self.subjects = [1, 3, 4]
         elif mode == 'test':
-            self.subjects = [2, 5, 4]
+            self.subjects = [2, 5, 6]
         else:
             raise Exception("Incorrect vallue for for 'mode': {}".format(mode))
         

@@ -12,13 +12,6 @@ from tensorboardX import SummaryWriter
 
 training_dataset = UnifiedPoseDataset(mode='train', loadit=True, name='train2')
 testing_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test2')
-samples = []
-samples += training_dataset.samples + testing_dataset.samples
-print samples[0]
-random.shuffle(samples)
-print samples[0]
-training_dataset.samples = samples[:len(samples)/2]
-testing_dataset.samples = samples[len(samples)/2:]
 
 training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = parameters.batch_size, shuffle=True, num_workers=4)
 testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = parameters.batch_size, shuffle=False, num_workers=4)
