@@ -36,8 +36,8 @@ You need to download and place the FPHA dataset in data directory. The data dire
 Now cd into punified_pose_estimation
 
 ### Training
-python clean.py
-python train.py
+- python clean.py
+- python train.py
 
 ### Test
 python test.py
