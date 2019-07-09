@@ -17,39 +17,9 @@ class UnifiedPoseDataset(Dataset):
 
     def __init__(self, mode='train', root='../data', loadit=False, name=None):
         
-        self.loadit = loadit
-
-        if name is None:
-            self.name = mode
-        else:
-            self.name = name
-
+        self.name = name
         self.root = root
-
-        if mode=='train':
-            self.subjects = [1, 3, 4]
-        elif mode == 'test':
-            self.subjects = [2, 5, 6]
-        else:
-            raise Exception("Incorrect vallue for for 'mode': {}".format(mode))
-        
-        subject = "Subject_1"
-        subject = os.path.join(root, 'Object_6D_pose_annotation_v1', subject)
-        self.actions = os.listdir(subject)
-        self.object_names = ['juice', 'liquid_soap', 'milk', 'salt']
-
-        action_to_object = {
-            'open_milk': 'milk',
-            'close_milk': 'milk',
-            'pour_milk': 'milk',
-            'open_juice_bottle': 'juice',
-            'close_juice_bottle': 'juice',
-            'pour_juice_bottle': 'juice',
-            'open_liquid_soap': 'liquid_soap',
-            'close_liquid_soap': 'liquid_soap',
-            'pour_liquid_soap': 'liquid_soap',
-            'put_salt': 'salt'
-        }
+        self.loadit = loadit
 
         self.transform = transforms.ColorJitter(0.5, 0.5, 0.5)
         self.normalize = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -59,25 +29,75 @@ class UnifiedPoseDataset(Dataset):
         self.objects = self.load_objects(object_root)
 
         if not loadit:
-            
-            self.samples = {}
+
+            subjects = [1, 2, 3, 4, 5, 6]
+            subject = "Subject_1"
+            subject = os.path.join(root, 'Object_6D_pose_annotation_v1', subject)
+            actions = os.listdir(subject)
+
+            action_to_object = {
+                        'open_milk': 'milk',
+                        'close_milk': 'milk',
+                        'pour_milk': 'milk',
+                        'open_juice_bottle': 'juice',
+                        'close_juice_bottle': 'juice',
+                        'pour_juice_bottle': 'juice',
+                        'open_liquid_soap': 'liquid_soap',
+                        'close_liquid_soap': 'liquid_soap',
+                        'pour_liquid_soap': 'liquid_soap',
+                        'put_salt': 'salt'
+                        }
+
             idx = 0
-            for subject in self.subjects:
+            dataset = dict()
+            dataset['train'] = dict()
+            dataset['test'] = dict()
+
+            for subject in subjects:
                 subject = "Subject_" + str(subject)
-                for action in self.actions:
+
+                dataset['train'][subject] = dict()
+                dataset['test'][subject] = dict()
+
+                for action in actions:
+                    dataset['train'][subject][action] = dict()
+                    dataset['test'][subject][action] = dict()
+
                     pose_sequences = set(os.listdir(os.path.join(root, 'Object_6D_pose_annotation_v1', subject, action)))
                     video_sequences = set(os.listdir(os.path.join(root, 'Video_files', subject, action)))
                     sequences = list(pose_sequences.intersection(video_sequences))
+
+                    data_split = len(sequences) / 2 + 1
+
                     for sequence in sequences:
+                        
+                        if int(sequence) < data_split:
+                            dataset['train'][subject][action][int(sequence)] = list()
+                        else:
+                            dataset['test'][subject][action][int(sequence)] = list()
+
                         frames = len(os.listdir(os.path.join(root, 'Video_files', subject, action, sequence, 'color')))
+
                         for frame in range(frames):
+                            if int(sequence) < data_split:
+                                dataset['train'][subject][action][int(sequence)].append(frame)
+                            else:
+                                dataset['test'][subject][action][int(sequence)].append(frame)
+
+            self.samples = dict()
+            idx = 0
+
+            for subject in dataset[mode].keys():
+                for action in dataset[mode][subject].keys():
+                    for sequence in dataset[mode][subject][action].keys():
+                        for frame in dataset[mode][subject][action][sequence]:
                             sample = {
-                                    'subject': subject,
-                                    'action_name': action,
-                                    'seq_idx': str(sequence),
-                                    'frame_idx': frame,
-                                    'object': action_to_object[action]
-                            }
+                                        'subject': subject,
+                                        'action_name': action,
+                                        'seq_idx': str(sequence),
+                                        'frame_idx': frame,
+                                        'object': action_to_object[action]
+                                        }
                             self.samples[idx] = sample
                             idx += 1
 
@@ -370,7 +390,5 @@ class UnifiedPoseDataset(Dataset):
         
 if __name__ == '__main__':
 
-    train = UnifiedPoseDataset(mode='train', loadit=True, name='train2')
-
-
+    train = UnifiedPoseDataset(mode='test', loadit=False, name='test')
     train[0]

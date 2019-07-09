@@ -10,8 +10,8 @@ from dataset import UnifiedPoseDataset
 
 from tensorboardX import SummaryWriter
 
-training_dataset = UnifiedPoseDataset(mode='train', loadit=True, name='train2')
-testing_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test2')
+training_dataset = UnifiedPoseDataset(mode='train', loadit=True, name='train')
+testing_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test')
 
 training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = parameters.batch_size, shuffle=True, num_workers=4)
 testing_dataloader = torch.utils.data.DataLoader(testing_dataset, batch_size = parameters.batch_size, shuffle=False, num_workers=4)
