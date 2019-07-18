@@ -5,6 +5,7 @@ import os
 import pickle
 
 import torch
+import yaml
 import trimesh
 import numpy as np
 from PIL import Image
@@ -67,7 +68,7 @@ class UnifiedPoseDataset(Dataset):
                     video_sequences = set(os.listdir(os.path.join(root, 'Video_files', subject, action)))
                     sequences = list(pose_sequences.intersection(video_sequences))
 
-                    data_split = len(sequences) / 2 + 1
+                    data_split = (len(sequences) * 3 / 4) + 1
 
                     for sequence in sequences:
                         
@@ -84,6 +85,7 @@ class UnifiedPoseDataset(Dataset):
                             else:
                                 dataset['test'][subject][action][int(sequence)].append(frame)
 
+            print yaml.dump(dataset)
             self.samples = dict()
             idx = 0
 
