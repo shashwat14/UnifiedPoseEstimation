@@ -8,7 +8,7 @@ from net import UnifiedNetwork
 from dataset import UnifiedPoseDataset
 from visualize import UnifiedVisualization
 
-training_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test2')
+training_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test')
 training_dataset[0]
 print training_dataset.samples[0]
 training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = 1, shuffle=True, num_workers=1)
