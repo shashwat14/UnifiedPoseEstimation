@@ -1,4 +1,6 @@
-Work in progress
+_Work in progress._ 
+
+This project was undertaken as a part of COMS 6901 Projects in Computer Science at Columbia University, under Prof. Peter K Allen.
 
 # UnifiedPoseEstimation
 Implementation of H+O: Unified Egocentric Recognition of 3D Hand-Object Poses and Interactions
