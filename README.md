@@ -33,7 +33,7 @@ You need to download and place the FPHA dataset in data directory. The data dire
   - Video_files
   - ..etc
 
-Now cd into punified_pose_estimation
+Now cd into unified_pose_estimation
 
 ### Training
 - python clean.py
