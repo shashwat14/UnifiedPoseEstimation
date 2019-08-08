@@ -21,7 +21,8 @@ class UnifiedPoseDataset(Dataset):
         self.name = name
         self.root = root
         self.loadit = loadit
-
+        self.mode = mode
+        
         self.transform = transforms.ColorJitter(0.5, 0.5, 0.5)
         self.normalize = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
@@ -111,6 +112,16 @@ class UnifiedPoseDataset(Dataset):
 
             self.samples = self.load_samples(mode)
 
+        self.camera_pose = np.array(
+            [[0.999988496304, -0.00468848412856, 0.000982563360594, 25.7],
+            [0.00469115935266, 0.999985218048, -0.00273845880292, 1.22],
+            [-0.000969709653873, 0.00274303671904, 0.99999576807, 3.902], 
+            [0, 0, 0, 1]])
+
+        self.camera_intrinsics = np.array([[1395.749023, 0, 935.732544],
+                                    [0, 1395.749268, 540.681030],
+                                    [0, 0, 1]])
+        
     def load_samples(self, mode):
 
         with open('../cfg/{}.pkl'.format(self.name), 'r') as f:
@@ -145,13 +156,20 @@ class UnifiedPoseDataset(Dataset):
         return self.preprocess(idx)
 
     def get_image(self, sample):
-        img_path = os.path.join(self.root, 'Video_files', sample['subject'],
-                            sample['action_name'], sample['seq_idx'], 'color','color_{:04d}.jpeg'.format(sample['frame_idx']))
-        img = Image.open(img_path)
-        img = self.transform(img)
+
+        img = self.fetch_image(sample)
+        
+        if self.mode == 'train':
+            img = self.transform(img)
         img = np.asarray(img.resize((416, 416), Image.ANTIALIAS), dtype=np.float32)
         img = np.transpose(img, (2, 0, 1))
         return img / 255.
+
+    def fetch_image(self, sample):
+        img_path = os.path.join(self.root, 'Video_files', sample['subject'],
+                            sample['action_name'], sample['seq_idx'], 'color','color_{:04d}.jpeg'.format(sample['frame_idx']))
+        img = Image.open(img_path)
+        return img
 
     def preprocess(self, idx):
         sample = self.samples[idx]
@@ -178,16 +196,6 @@ class UnifiedPoseDataset(Dataset):
 
         skeleton_root = os.path.join(self.root, 'Hand_pose_annotation_v1')
         object_pose_root = os.path.join(self.root, 'Object_6D_pose_annotation_v1')
-
-        self.camera_pose = np.array(
-            [[0.999988496304, -0.00468848412856, 0.000982563360594, 25.7],
-            [0.00469115935266, 0.999985218048, -0.00273845880292, 1.22],
-            [-0.000969709653873, 0.00274303671904, 0.99999576807, 3.902], 
-            [0, 0, 0, 1]])
-
-        self.camera_intrinsics = np.array([[1395.749023, 0, 935.732544],
-                                    [0, 1395.749268, 540.681030],
-                                    [0, 0, 1]])
 
         # Object Properties
         

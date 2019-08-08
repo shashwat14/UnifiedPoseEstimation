@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -7,12 +8,16 @@ class UnifiedVisualization:
     
     def __init__(self):
 
-        fig = plt.figure()
-        self.ax = fig.add_subplot(111, projection='3d')
+        self.fig = plt.figure(figsize=(12,6))
+        self.ax = self.fig.add_subplot(121, projection='3d')
         self.ax.set_xlabel('X axis')
         self.ax.set_ylabel('Y axis')
         self.ax.set_zlabel('Z axis')
-
+        
+        self.ax.set_xlim((-50,250))
+        self.ax.set_ylim((-50,250))
+        self.ax.set_zlim((250,550))
+        
     def plot_box(self, points):
 
         xs = points[:,0]
@@ -102,6 +107,10 @@ class UnifiedVisualization:
         pinky_z = points[17,2]
 
         self.ax.plot([wrist_x, pinky_x], [wrist_y, pinky_y], [wrist_z, pinky_z])
+
+    def plot_rgb(self, rgb):
+        self.ax = self.fig.add_subplot(122)
+        self.ax.imshow(rgb)
 
     def plot(self):
 

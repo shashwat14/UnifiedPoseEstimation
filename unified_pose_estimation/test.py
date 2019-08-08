@@ -9,9 +9,7 @@ from dataset import UnifiedPoseDataset
 from visualize import UnifiedVisualization
 
 training_dataset = UnifiedPoseDataset(mode='test', loadit=True, name='test')
-training_dataset[0]
-print training_dataset.samples[0]
-training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = 1, shuffle=True, num_workers=1)
+training_dataloader = torch.utils.data.DataLoader(training_dataset, batch_size = 1, shuffle=False, num_workers=1)
 
 model = UnifiedNetwork()
 model.load_state_dict(torch.load('../models/unified_net.pth'))
@@ -33,7 +31,7 @@ with torch.no_grad():
     object_detected = False
 
     for batch, data in enumerate(tqdm(training_dataloader)):
-    
+        print training_dataset.samples[batch]
         image = data[0]
         true = [x.cuda() for x in data[1:]]
 
@@ -81,8 +79,8 @@ with torch.no_grad():
         viz = UnifiedVisualization()
         viz.plot_hand(hand_points)
         viz.plot_box(object_points[1:9, :])
+        viz.plot_rgb(training_dataset.fetch_image(training_dataset.samples[batch]))
         viz.plot()
-
         """
 
     print hand_cell_counter * 1. / batch
