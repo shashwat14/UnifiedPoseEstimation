@@ -1,4 +1,4 @@
-_Work in progress._ 
+
 
 This project was undertaken as a part of COMS 6901 Projects in Computer Science at Columbia University, under Prof. Peter K Allen.
 
